@@ -27,7 +27,8 @@ import kotlin.concurrent.thread
 
 class RecorderActivity : Activity() {
     private lateinit var database: RecorderDatabase
-    private var showingDetail = false
+    private var screen = Screen.LIST
+    private var selectedExchange: StoredExchange? = null
     private var listView: ListView? = null
     private val reloadInProgress = AtomicBoolean()
     private val reloadPending = AtomicBoolean()
@@ -52,11 +53,16 @@ class RecorderActivity : Activity() {
 
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
-        if (showingDetail) showList() else super.onBackPressed()
+        when (screen) {
+            Screen.PAYLOAD -> selectedExchange?.let(::showExchange) ?: showList()
+            Screen.EXCHANGE -> showList()
+            Screen.LIST -> super.onBackPressed()
+        }
     }
 
     private fun showList() {
-        showingDetail = false
+        screen = Screen.LIST
+        selectedExchange = null
         val root = verticalLayout()
         root.addView(header("WebSocket Recorder"))
         listView = ListView(this).also { list ->
@@ -74,7 +80,7 @@ class RecorderActivity : Activity() {
 
     private fun reloadRealtime() {
         val target = listView ?: return
-        if (showingDetail) return
+        if (screen != Screen.LIST) return
         if (!reloadInProgress.compareAndSet(false, true)) {
             reloadPending.set(true)
             return
@@ -83,7 +89,7 @@ class RecorderActivity : Activity() {
             val exchanges = database.recent()
             runOnUiThread {
                 try {
-                    if (!showingDetail && target === listView) {
+                    if (screen == Screen.LIST && target === listView) {
                         target.adapter = ExchangeAdapter(exchanges)
                         target.setOnItemClickListener { _, _, position, _ ->
                             showExchange(exchanges[position])
@@ -98,7 +104,8 @@ class RecorderActivity : Activity() {
     }
 
     private fun showExchange(exchange: StoredExchange) {
-        showingDetail = true
+        screen = Screen.EXCHANGE
+        selectedExchange = exchange
         listView = null
         val root = verticalLayout()
         root.addView(Button(this).apply {
@@ -117,12 +124,12 @@ class RecorderActivity : Activity() {
         }
         exchange.request?.let { payload ->
             choices.addView(payloadButton("REQUEST", OUTGOING_COLOR) {
-                showPayload("Request · ${exchange.type}", payload)
+                showPayload(exchange, "Request · ${exchange.type}", payload)
             }, LinearLayout.LayoutParams(0, -2, 1f))
         }
         exchange.response?.let { payload ->
             choices.addView(payloadButton("RESPONSE", INCOMING_COLOR) {
-                showPayload("Response · ${exchange.type}", payload)
+                showPayload(exchange, "Response · ${exchange.type}", payload)
             }, LinearLayout.LayoutParams(0, -2, 1f))
         }
         root.addView(choices)
@@ -138,12 +145,13 @@ class RecorderActivity : Activity() {
         setContentView(root)
     }
 
-    private fun showPayload(title: String, payload: String) {
-        showingDetail = true
+    private fun showPayload(exchange: StoredExchange, title: String, payload: String) {
+        screen = Screen.PAYLOAD
+        selectedExchange = exchange
         val root = verticalLayout()
         root.addView(Button(this).apply {
             text = "← Exchange"
-            setOnClickListener { showList() }
+            setOnClickListener { showExchange(exchange) }
         })
         root.addView(header(title))
         val actions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
@@ -285,5 +293,11 @@ class RecorderActivity : Activity() {
         fun launch(context: Context) {
             context.startActivity(intent(context))
         }
+    }
+
+    private enum class Screen {
+        LIST,
+        EXCHANGE,
+        PAYLOAD,
     }
 }
