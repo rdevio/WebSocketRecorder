@@ -1,5 +1,6 @@
 pluginManagement {
     repositories {
+        mavenLocal()
         google {
             content {
                 includeGroupByRegex("com\\.android.*")
@@ -26,4 +27,5 @@ include(
     ":recorder-core",
     ":recorder-okhttp",
     ":recorder-no-op",
+    ":recorder-android",
 )

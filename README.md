@@ -63,6 +63,7 @@ The current local coordinates are:
 io.github.rezasharifiy.websocketrecorder:recorder-core:0.1.0-SNAPSHOT
 io.github.rezasharifiy.websocketrecorder:recorder-okhttp:0.1.0-SNAPSHOT
 io.github.rezasharifiy.websocketrecorder:recorder-no-op:0.1.0-SNAPSHOT
+io.github.rezasharifiy.websocketrecorder:recorder-android:0.1.0-SNAPSHOT
 ```
 
 In the consuming project's `settings.gradle.kts`:
@@ -84,11 +85,52 @@ dependencies {
     debugImplementation(
         "io.github.rezasharifiy.websocketrecorder:recorder-okhttp:0.1.0-SNAPSHOT",
     )
+    debugImplementation(
+        "io.github.rezasharifiy.websocketrecorder:recorder-android:0.1.0-SNAPSHOT",
+    )
     releaseImplementation(
         "io.github.rezasharifiy.websocketrecorder:recorder-no-op:0.1.0-SNAPSHOT",
     )
 }
 ```
+
+## Android inspector
+
+Create one recorder for the debug application process:
+
+```kotlin
+val recorder = AndroidWebSocketRecorder.Builder(applicationContext)
+    .showNotification(true)
+    .maxStoredEvents(10_000)
+    .queueCapacity(512)
+    .build()
+
+val monitoredListener = appListener.withMonitoring(recorder)
+
+// WebSocket creation and ownership remain in the application.
+okHttpClient.newWebSocket(request, monitoredListener)
+```
+
+The Android collector writes events to SQLite and updates its notification on a background
+consumer. If the bounded queue is full, monitoring events are dropped rather than blocking the
+WebSocket callback.
+
+Tapping the notification opens `RecorderActivity`. The activity shows connection events and
+incoming messages. Selecting a text message opens a selectable detail view; valid JSON objects and
+arrays are formatted with two-space indentation.
+
+The inspector can also be launched directly:
+
+```kotlin
+RecorderActivity.launch(context)
+```
+
+On Android 13 and newer, the host application must request `POST_NOTIFICATIONS`. Recording and the
+inspector activity continue to work when notification permission is denied, but no notification is
+shown.
+
+Keep creation of `AndroidWebSocketRecorder` in the debug source set when using the release no-op
+artifact.
 
 ### Listener-only limitation
 
@@ -114,10 +156,7 @@ retention and redaction policy.
 
 ## Roadmap
 
-- Android Room persistence with retention and batch writes
-- Jetpack Compose session/message inspector
 - Payload redaction and recording levels
-- Notification and in-app launcher
 - JSON export
 - Benchmarks for latency, throughput and allocation overhead
 
