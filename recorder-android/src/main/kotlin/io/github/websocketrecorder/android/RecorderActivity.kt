@@ -181,7 +181,12 @@ class RecorderActivity : Activity() {
 
     private inner class ExchangeAdapter(
         private val items: List<StoredExchange>,
-    ) : ArrayAdapter<StoredExchange>(this, android.R.layout.simple_list_item_2, items) {
+    ) : ArrayAdapter<StoredExchange>(
+        this,
+        android.R.layout.simple_list_item_2,
+        android.R.id.text1,
+        items,
+    ) {
         private val timeFormat = SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault())
 
         override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
