@@ -1,9 +1,15 @@
 plugins {
     kotlin("jvm")
+    `maven-publish`
 }
 
 kotlin {
     jvmToolchain(17)
+}
+
+java {
+    withSourcesJar()
+    withJavadocJar()
 }
 
 dependencies {
@@ -15,4 +21,13 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform()
+}
+
+publishing {
+    publications {
+        create<MavenPublication>("maven") {
+            artifactId = "recorder-okhttp"
+            from(components["java"])
+        }
+    }
 }

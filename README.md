@@ -49,6 +49,47 @@ val webSocket = okHttpClient.newWebSocket(request, monitoredListener)
 
 Every callback is forwarded to `appListener` with the exact original `WebSocket` instance.
 
+## Use from Maven Local
+
+Publish all modules to your local Maven repository:
+
+```shell
+./gradlew publishToMavenLocal
+```
+
+The current local coordinates are:
+
+```text
+io.github.rezasharifiy.websocketrecorder:recorder-core:0.1.0-SNAPSHOT
+io.github.rezasharifiy.websocketrecorder:recorder-okhttp:0.1.0-SNAPSHOT
+io.github.rezasharifiy.websocketrecorder:recorder-no-op:0.1.0-SNAPSHOT
+```
+
+In the consuming project's `settings.gradle.kts`:
+
+```kotlin
+dependencyResolutionManagement {
+    repositories {
+        mavenLocal()
+        google()
+        mavenCentral()
+    }
+}
+```
+
+Then add the OkHttp integration:
+
+```kotlin
+dependencies {
+    debugImplementation(
+        "io.github.rezasharifiy.websocketrecorder:recorder-okhttp:0.1.0-SNAPSHOT",
+    )
+    releaseImplementation(
+        "io.github.rezasharifiy.websocketrecorder:recorder-no-op:0.1.0-SNAPSHOT",
+    )
+}
+```
+
 ### Listener-only limitation
 
 `WebSocketListener` receives connection lifecycle events and incoming messages. OkHttp does not
