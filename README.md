@@ -1,10 +1,10 @@
 # WebSocketRecorder
 
-A passive, best-effort WebSocket inspector for Kotlin and OkHttp.
+A passive, listener-only WebSocket inspector for Kotlin and OkHttp.
 
-WebSocketRecorder observes connection state and messages without owning the connection. It never
-reconnects, retries, changes payloads, changes return values, or waits for storage/UI work on an
-OkHttp callback thread.
+WebSocketRecorder observes connection state and incoming messages by decorating the application's
+existing `WebSocketListener`. It does not create, return or wrap a `WebSocket`. The application
+remains the sole owner of connection creation, sending, closing, cancellation and reconnection.
 
 > **Status:** early MVP. The event model, non-blocking recorder and OkHttp integration are usable.
 > Android persistence and inspector UI are planned next.
@@ -27,7 +27,7 @@ transport.
 ## Modules
 
 - `recorder-core`: transport-independent events and bounded asynchronous recorder.
-- `recorder-okhttp`: transparent `WebSocket.Factory` decorator.
+- `recorder-okhttp`: listener-only `WebSocketListener` decorator.
 - `recorder-no-op`: release-safe recorder implementation.
 
 ## Usage
@@ -37,26 +37,31 @@ val asyncRecorder = AsyncWebSocketRecorder(capacity = 512) { event ->
     // Persist or forward on this background consumer.
 }
 
-val monitoredFactory = MonitoringWebSocketFactory(
-    delegate = okHttpClient,
-    recorder = asyncRecorder,
-)
+val appListener = object : WebSocketListener() {
+    // The application's existing listener.
+}
 
-val webSocket = monitoredFactory.newWebSocket(request, appListener)
+val monitoredListener = appListener.withMonitoring(asyncRecorder)
+
+// The application creates and owns its WebSocket exactly as before.
+val webSocket = okHttpClient.newWebSocket(request, monitoredListener)
 ```
 
-The returned `WebSocket` delegates to the real OkHttp socket. Incoming lifecycle callbacks are
-forwarded to `appListener`. Outgoing messages are observed through the returned decorator.
+Every callback is forwarded to `appListener` with the exact original `WebSocket` instance.
+
+### Listener-only limitation
+
+`WebSocketListener` receives connection lifecycle events and incoming messages. OkHttp does not
+report calls to `WebSocket.send(...)` through the listener, so a listener-only monitor cannot
+observe outgoing messages. WebSocketRecorder deliberately accepts this limitation instead of
+wrapping or owning the WebSocket.
 
 ### Release build
 
 Use `NoOpWebSocketRecorder` when recording is disabled:
 
 ```kotlin
-val monitoredFactory = MonitoringWebSocketFactory(
-    delegate = okHttpClient,
-    recorder = NoOpWebSocketRecorder,
-)
+val listener = appListener.withMonitoring(NoOpWebSocketRecorder)
 ```
 
 ## Privacy
