@@ -8,6 +8,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.os.SystemClock
+import java.util.concurrent.atomic.AtomicLong
 
 internal class RecorderNotifications(
     private val context: Context,
@@ -15,6 +17,7 @@ internal class RecorderNotifications(
 ) {
     private val manager =
         context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+    private val lastNotificationAt = AtomicLong()
 
     init {
         if (enabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -33,6 +36,11 @@ internal class RecorderNotifications(
 
     fun onEventStored(eventId: Long, count: Long, summary: String) {
         if (!enabled || !canPostNotifications()) return
+        val now = SystemClock.elapsedRealtime()
+        val previous = lastNotificationAt.get()
+        if (now - previous < MIN_NOTIFICATION_INTERVAL_MS ||
+            !lastNotificationAt.compareAndSet(previous, now)
+        ) return
 
         val openInspector = PendingIntent.getActivity(
             context,
@@ -66,5 +74,6 @@ internal class RecorderNotifications(
     private companion object {
         const val CHANNEL_ID = "websocket_recorder"
         const val NOTIFICATION_ID = 0x5753
+        const val MIN_NOTIFICATION_INTERVAL_MS = 750L
     }
 }

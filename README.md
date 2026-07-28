@@ -121,6 +121,18 @@ val monitoredListener = WebSocketRecorderHolder.get()
     ?: appListener
 ```
 
+Record accepted outgoing messages explicitly at the existing send point:
+
+```kotlin
+if (webSocket?.send(message) == true) {
+    WebSocketRecorderHolder.recordOutgoing(message)
+}
+```
+
+Outgoing requests and incoming responses with the same `uniqueId` are merged into one list item.
+The inspector decodes stringified JSON in `content`, uses `content.type` as the title when present
+(falling back to the envelope `type`), and shows request/response payloads separately.
+
 From Java:
 
 ```java

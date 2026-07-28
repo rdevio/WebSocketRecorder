@@ -30,6 +30,11 @@ object WebSocketRecorderHolder {
     }
 
     @JvmStatic
+    fun recordOutgoing(text: String) {
+        instance?.recordOutgoing(text)
+    }
+
+    @JvmStatic
     fun install(recorder: AndroidWebSocketRecorder) {
         synchronized(this) {
             instance?.close()

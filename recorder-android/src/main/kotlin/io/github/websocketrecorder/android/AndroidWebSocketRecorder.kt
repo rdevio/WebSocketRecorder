@@ -25,6 +25,7 @@ class AndroidWebSocketRecorder private constructor(
         enabled = configuration.showNotification,
     )
     private val storedEventCount = AtomicLong(database.count())
+    private val outgoingSequence = AtomicLong()
     private val asyncRecorder = AsyncWebSocketRecorder(
         capacity = configuration.queueCapacity,
     ) { event ->
@@ -35,6 +36,19 @@ class AndroidWebSocketRecorder private constructor(
 
     override fun record(event: WebSocketEvent) {
         asyncRecorder.record(event)
+    }
+
+    fun recordOutgoing(text: String) {
+        asyncRecorder.record(
+            WebSocketEvent.TextMessage(
+                sessionId = OUTGOING_SESSION,
+                sequence = outgoingSequence.getAndIncrement(),
+                timestampNanos = System.nanoTime(),
+                direction = io.github.websocketrecorder.core.Direction.OUTGOING,
+                text = text,
+                accepted = true,
+            ),
+        )
     }
 
     override fun close() {
@@ -74,6 +88,10 @@ class AndroidWebSocketRecorder private constructor(
                 showNotification = showNotification,
             ),
         )
+    }
+
+    private companion object {
+        const val OUTGOING_SESSION = "outgoing"
     }
 }
 
