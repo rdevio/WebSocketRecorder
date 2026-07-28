@@ -121,13 +121,21 @@ val monitoredListener = WebSocketRecorderHolder.get()
     ?: appListener
 ```
 
-Record accepted outgoing messages explicitly at the existing send point:
+Wrap the WebSocket returned by OkHttp to record accepted outgoing messages:
 
 ```kotlin
-if (webSocket?.send(message) == true) {
-    WebSocketRecorderHolder.recordOutgoing(message)
-}
+val recorder = WebSocketRecorderHolder.requireRecorder()
+webSocket = okHttpClient
+    .newWebSocket(request, monitoredListener)
+    .withMonitoring(recorder)
+
+// Use webSocket normally. Successful sends are recorded automatically.
+webSocket.send(message)
 ```
+
+`withMonitoring` does not create another connection. It decorates the existing WebSocket and
+delegates `send`, `close`, `cancel`, `request`, and `queueSize` to that exact instance. Monitoring
+is best-effort and recorder failures never change the result of `send`.
 
 Outgoing requests and incoming responses with the same `uniqueId` are merged into one list item.
 The inspector decodes stringified JSON in `content`, uses `content.type` as the title when present

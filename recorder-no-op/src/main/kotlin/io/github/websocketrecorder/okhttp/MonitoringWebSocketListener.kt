@@ -24,6 +24,37 @@ fun WebSocketListener.withMonitoring(
     configuration: MonitoringWebSocketListener.Configuration,
 ): WebSocketListener = this
 
+@Suppress("UNUSED_PARAMETER")
+fun WebSocket.withMonitoring(
+    recorder: WebSocketRecorder,
+): WebSocket = this
+
+@Suppress("UNUSED_PARAMETER")
+fun WebSocket.withMonitoring(
+    recorder: WebSocketRecorder,
+    configuration: MonitoringWebSocket.Configuration,
+): WebSocket = this
+
+/**
+ * API-compatible no-op configuration for outgoing WebSocket monitoring.
+ */
+class MonitoringWebSocket private constructor() {
+    data class Configuration(
+        val maxBinaryPayloadBytes: Int = DEFAULT_MAX_BINARY_PAYLOAD_BYTES,
+        val sessionIdProvider: () -> String = { UUID.randomUUID().toString() },
+    ) {
+        init {
+            require(maxBinaryPayloadBytes >= 0) {
+                "maxBinaryPayloadBytes must not be negative"
+            }
+        }
+
+        private companion object {
+            const val DEFAULT_MAX_BINARY_PAYLOAD_BYTES = 256 * 1024
+        }
+    }
+}
+
 /**
  * Holds the same public configuration shape as the recording artifact.
  *
