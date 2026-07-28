@@ -111,6 +111,22 @@ val monitoredListener = appListener.withMonitoring(recorder)
 okHttpClient.newWebSocket(request, monitoredListener)
 ```
 
+For the default process-wide configuration, initialize the built-in holder once:
+
+```kotlin
+WebSocketRecorderHolder.initialize(applicationContext)
+
+val monitoredListener = WebSocketRecorderHolder.get()
+    ?.let { appListener.withMonitoring(it) }
+    ?: appListener
+```
+
+From Java:
+
+```java
+WebSocketRecorderHolder.initialize(context.getApplicationContext());
+```
+
 The Android collector writes events to SQLite and updates its notification on a background
 consumer. If the bounded queue is full, monitoring events are dropped rather than blocking the
 WebSocket callback.
