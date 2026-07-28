@@ -35,6 +35,7 @@ kotlin {
 
 dependencies {
     api(project(":recorder-core"))
+    testImplementation(kotlin("test"))
 }
 
 publishing {

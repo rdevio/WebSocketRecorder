@@ -121,6 +121,36 @@ val monitoredListener = WebSocketRecorderHolder.get()
     ?: appListener
 ```
 
+Map protocol type codes to readable titles, or discard selected types before they are stored:
+
+```kotlin
+WebSocketRecorderHolder.initialize(
+    applicationContext,
+    TypeCodeMasker(
+        labels = mapOf(
+            23 to "GET_USER_PROFILE",
+            24 to "UPDATE_USER_PROFILE",
+        ),
+        ignoredTypes = setOf(1, 2, 99),
+    ),
+)
+```
+
+For custom rules, provide a lambda. Returning `null` means the message is neither persisted nor
+shown in the list:
+
+```kotlin
+AndroidWebSocketRecorder.Builder(applicationContext)
+    .messageMasker { type ->
+        when (type) {
+            "23" -> "GET_USER_PROFILE"
+            "99" -> null
+            else -> type
+        }
+    }
+    .build()
+```
+
 Wrap the WebSocket returned by OkHttp to record accepted outgoing messages:
 
 ```kotlin

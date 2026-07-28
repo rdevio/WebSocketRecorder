@@ -22,6 +22,21 @@ object WebSocketRecorderHolder {
     }
 
     @JvmStatic
+    fun initialize(
+        context: Context,
+        messageMasker: WebSocketMessageMasker,
+    ): AndroidWebSocketRecorder {
+        instance?.let { return it }
+
+        return synchronized(this) {
+            instance ?: AndroidWebSocketRecorder.Builder(context.applicationContext)
+                .messageMasker(messageMasker)
+                .build()
+                .also { instance = it }
+        }
+    }
+
+    @JvmStatic
     fun get(): WebSocketRecorder? = instance
 
     @JvmStatic

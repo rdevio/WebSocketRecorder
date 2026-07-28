@@ -19,6 +19,7 @@ class AndroidWebSocketRecorder private constructor(
     private val database = RecorderDatabase(
         context = context.applicationContext,
         maxStoredEvents = configuration.maxStoredEvents,
+        messageMasker = configuration.messageMasker,
     )
     private val notifications = RecorderNotifications(
         context = context.applicationContext,
@@ -29,9 +30,10 @@ class AndroidWebSocketRecorder private constructor(
     private val asyncRecorder = AsyncWebSocketRecorder(
         capacity = configuration.queueCapacity,
     ) { event ->
-        val id = database.insert(event)
-        val count = storedEventCount.incrementAndGet()
-        notifications.onEventStored(id, count, event.summary())
+        database.insert(event)?.let { id ->
+            val count = storedEventCount.incrementAndGet()
+            notifications.onEventStored(id, count, event.summary())
+        }
     }
 
     override fun record(event: WebSocketEvent) {
@@ -62,6 +64,7 @@ class AndroidWebSocketRecorder private constructor(
         val queueCapacity: Int = 512,
         val maxStoredEvents: Int = 10_000,
         val showNotification: Boolean = true,
+        val messageMasker: WebSocketMessageMasker = WebSocketMessageMasker.KEEP_ALL,
     ) {
         init {
             require(queueCapacity > 0) { "queueCapacity must be greater than zero" }
@@ -73,6 +76,7 @@ class AndroidWebSocketRecorder private constructor(
         private var queueCapacity: Int = 512
         private var maxStoredEvents: Int = 10_000
         private var showNotification: Boolean = true
+        private var messageMasker: WebSocketMessageMasker = WebSocketMessageMasker.KEEP_ALL
 
         fun queueCapacity(value: Int) = apply { queueCapacity = value }
 
@@ -80,12 +84,15 @@ class AndroidWebSocketRecorder private constructor(
 
         fun showNotification(value: Boolean) = apply { showNotification = value }
 
+        fun messageMasker(value: WebSocketMessageMasker) = apply { messageMasker = value }
+
         fun build(): AndroidWebSocketRecorder = AndroidWebSocketRecorder(
             context = context,
             configuration = Configuration(
                 queueCapacity = queueCapacity,
                 maxStoredEvents = maxStoredEvents,
                 showNotification = showNotification,
+                messageMasker = messageMasker,
             ),
         )
     }

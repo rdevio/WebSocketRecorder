@@ -12,6 +12,7 @@ import java.util.concurrent.CopyOnWriteArraySet
 internal class RecorderDatabase(
     context: Context,
     private val maxStoredEvents: Int,
+    private val messageMasker: WebSocketMessageMasker = WebSocketMessageMasker.KEEP_ALL,
 ) : SQLiteOpenHelper(context, DATABASE_NAME, null, DATABASE_VERSION) {
 
     override fun onCreate(db: SQLiteDatabase) {
@@ -39,26 +40,32 @@ internal class RecorderDatabase(
         onCreate(db)
     }
 
-    fun insert(event: WebSocketEvent): Long {
+    fun insert(event: WebSocketEvent): Long? {
         val now = System.currentTimeMillis()
         val id = when (event) {
             is WebSocketEvent.TextMessage -> upsertText(event, now)
             else -> insertStandalone(event, now)
         }
+        if (id == null) return null
         prune()
         notifyChanged()
         return id
     }
 
-    private fun upsertText(event: WebSocketEvent.TextMessage, now: Long): Long {
+    private fun upsertText(event: WebSocketEvent.TextMessage, now: Long): Long? {
         val parsed = RecordedPayloadParser.parse(event.text)
+        val displayType = try {
+            messageMasker.displayType(parsed.type)
+        } catch (_: Throwable) {
+            parsed.type
+        } ?: return null
         val key = parsed.uniqueId?.let { "unique:$it" }
             ?: "event:${event.sessionId}:${event.sequence}:${event.direction}"
         val existingId = findId(key)
         val values = ContentValues().apply {
             put("correlation_key", key)
             put("unique_id", parsed.uniqueId)
-            put("type_label", parsed.type)
+            put("type_label", displayType)
             put("updated_time_ms", now)
             if (event.direction == Direction.OUTGOING) {
                 put("request_payload", parsed.normalized)
