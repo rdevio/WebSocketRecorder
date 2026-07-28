@@ -6,12 +6,14 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.graphics.Typeface
 import android.os.Bundle
 import android.view.Gravity
+import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ArrayAdapter
+import android.widget.BaseAdapter
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ListView
@@ -181,34 +183,71 @@ class RecorderActivity : Activity() {
 
     private inner class ExchangeAdapter(
         private val items: List<StoredExchange>,
-    ) : ArrayAdapter<StoredExchange>(
-        this,
-        android.R.layout.simple_list_item_2,
-        android.R.id.text1,
-        items,
-    ) {
+    ) : BaseAdapter() {
         private val timeFormat = SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault())
 
+        override fun getCount(): Int = items.size
+
+        override fun getItem(position: Int): StoredExchange = items[position]
+
+        override fun getItemId(position: Int): Long = position.toLong()
+
         override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
-            val view = super.getView(position, convertView, parent)
-            val item = items[position]
-            view.findViewById<TextView>(android.R.id.text1).text = item.type
-            val state = when {
-                item.hasRequest && item.hasResponse -> "REQ + RES"
-                item.hasRequest -> "OUT · waiting"
-                else -> "IN"
+            val holder: ExchangeViewHolder
+            val view: View
+            if (convertView == null) {
+                view = LayoutInflater.from(parent.context)
+                    .inflate(R.layout.websocket_recorder_item_exchange, parent, false)
+                holder = ExchangeViewHolder(view)
+                view.tag = holder
+            } else {
+                holder = convertView.tag as ExchangeViewHolder
+                view = convertView
             }
-            view.findViewById<TextView>(android.R.id.text2).text =
-                "$state   ${timeFormat.format(Date(item.updatedTimeMs))}"
-            view.setBackgroundColor(
-                when {
-                    item.hasRequest && item.hasResponse -> MATCHED_COLOR
-                    item.hasRequest -> OUTGOING_COLOR
-                    else -> INCOMING_COLOR
-                },
-            )
+
+            val item = getItem(position)
+            val appearance = when {
+                item.hasRequest && item.hasResponse ->
+                    ItemAppearance("REQ + RES", MATCHED_COLOR, MATCHED_TEXT_COLOR)
+                item.hasRequest ->
+                    ItemAppearance("OUT · WAITING", OUTGOING_COLOR, OUTGOING_TEXT_COLOR)
+                else ->
+                    ItemAppearance("IN", INCOMING_COLOR, INCOMING_TEXT_COLOR)
+            }
+            holder.type.text = item.type
+            holder.uniqueId.text = item.uniqueId?.let { "ID  $it" } ?: "No uniqueId"
+            holder.time.text = timeFormat.format(Date(item.updatedTimeMs))
+            holder.state.text = appearance.label
+            holder.state.setTextColor(appearance.textColor)
+            holder.state.background = roundedBackground(appearance.backgroundColor)
+            holder.indicator.setBackgroundColor(appearance.textColor)
             return view
         }
+    }
+
+    private class ExchangeViewHolder(view: View) {
+        val indicator: View =
+            view.findViewById(R.id.websocket_recorder_direction_indicator)
+        val type: TextView =
+            view.findViewById(R.id.websocket_recorder_type)
+        val state: TextView =
+            view.findViewById(R.id.websocket_recorder_state)
+        val uniqueId: TextView =
+            view.findViewById(R.id.websocket_recorder_unique_id)
+        val time: TextView =
+            view.findViewById(R.id.websocket_recorder_time)
+    }
+
+    private data class ItemAppearance(
+        val label: String,
+        val backgroundColor: Int,
+        val textColor: Int,
+    )
+
+    private fun roundedBackground(color: Int) = GradientDrawable().apply {
+        shape = GradientDrawable.RECTANGLE
+        cornerRadius = 12.dp.toFloat()
+        setColor(color)
     }
 
     private fun payloadButton(label: String, color: Int, action: () -> Unit) =
@@ -236,6 +275,9 @@ class RecorderActivity : Activity() {
         private const val OUTGOING_COLOR = 0xFFFFE0B2.toInt()
         private const val INCOMING_COLOR = 0xFFC8E6C9.toInt()
         private const val MATCHED_COLOR = 0xFFE1BEE7.toInt()
+        private const val OUTGOING_TEXT_COLOR = 0xFFE65100.toInt()
+        private const val INCOMING_TEXT_COLOR = 0xFF1B5E20.toInt()
+        private const val MATCHED_TEXT_COLOR = 0xFF6A1B9A.toInt()
 
         fun intent(context: Context): Intent =
             Intent(context, RecorderActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
