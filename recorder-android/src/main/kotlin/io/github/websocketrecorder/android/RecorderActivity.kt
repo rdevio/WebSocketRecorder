@@ -1,6 +1,7 @@
 package io.github.websocketrecorder.android
 
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -33,7 +34,10 @@ class RecorderActivity : Activity() {
     private var screen = Screen.LIST
     private var selectedExchange: StoredExchange? = null
     private var listView: ListView? = null
+    private var filterButton: Button? = null
     private var listUpdateVersion = 0L
+    private val availableTypes = linkedSetOf<String>()
+    private val hiddenTypes = linkedSetOf<String>()
     private val reloadInProgress = AtomicBoolean()
     private val reloadPending = AtomicBoolean()
     private var backInvokedCallback: OnBackInvokedCallback? = null
@@ -108,6 +112,11 @@ class RecorderActivity : Activity() {
         selectedExchange = null
         val root = verticalLayout()
         root.addView(header("WebSocket Recorder"))
+        filterButton = Button(this).also { button ->
+            button.setOnClickListener { showTypeFilter() }
+            root.addView(button)
+        }
+        updateFilterButton()
         listView = ListView(this).also { list ->
             list.adapter = ExchangeAdapter(emptyList())
             list.setOnItemClickListener { _, _, position, _ ->
@@ -139,8 +148,13 @@ class RecorderActivity : Activity() {
             runOnUiThread {
                 try {
                     if (screen == Screen.LIST && target === listView) {
+                        availableTypes.clear()
+                        availableTypes += exchanges.map { it.type }
+                        hiddenTypes.retainAll(availableTypes)
+                        updateFilterButton()
+                        val visibleExchanges = exchanges.filterNot { it.type in hiddenTypes }
                         val adapter = target.adapter as ExchangeAdapter
-                        adapter.submitList(exchanges)
+                        adapter.submitList(visibleExchanges)
                         val updateVersion = ++listUpdateVersion
                         scrollAnchor?.let { anchor ->
                             target.restoreScrollAnchor(adapter, anchor)
@@ -160,6 +174,56 @@ class RecorderActivity : Activity() {
                     if (reloadPending.getAndSet(false)) reloadRealtime()
                 }
             }
+        }
+    }
+
+    private fun showTypeFilter() {
+        val types = availableTypes.sorted()
+        if (types.isEmpty()) {
+            AlertDialog.Builder(this)
+                .setTitle("Hide message types")
+                .setMessage("No message types have been recorded yet.")
+                .setPositiveButton(android.R.string.ok, null)
+                .show()
+            return
+        }
+
+        val pendingHiddenTypes = hiddenTypes.toMutableSet()
+        val checkedItems = BooleanArray(types.size) { index ->
+            types[index] in pendingHiddenTypes
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Hide message types")
+            .setMultiChoiceItems(
+                types.toTypedArray(),
+                checkedItems,
+            ) { _, index, checked ->
+                if (checked) {
+                    pendingHiddenTypes += types[index]
+                } else {
+                    pendingHiddenTypes -= types[index]
+                }
+            }
+            .setNeutralButton("Show all") { _, _ ->
+                hiddenTypes.clear()
+                updateFilterButton()
+                reloadRealtime()
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton("Apply") { _, _ ->
+                hiddenTypes.clear()
+                hiddenTypes += pendingHiddenTypes
+                updateFilterButton()
+                reloadRealtime()
+            }
+            .show()
+    }
+
+    private fun updateFilterButton() {
+        filterButton?.text = if (hiddenTypes.isEmpty()) {
+            "Filter message types"
+        } else {
+            "Filter · ${hiddenTypes.size} hidden"
         }
     }
 
