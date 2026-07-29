@@ -30,6 +30,7 @@ class RecorderActivity : Activity() {
     private var screen = Screen.LIST
     private var selectedExchange: StoredExchange? = null
     private var listView: ListView? = null
+    private var listUpdateVersion = 0L
     private val reloadInProgress = AtomicBoolean()
     private val reloadPending = AtomicBoolean()
     private val databaseListener: () -> Unit = {
@@ -68,6 +69,11 @@ class RecorderActivity : Activity() {
         val root = verticalLayout()
         root.addView(header("WebSocket Recorder"))
         listView = ListView(this).also { list ->
+            list.adapter = ExchangeAdapter(emptyList())
+            list.setOnItemClickListener { _, _, position, _ ->
+                val adapter = list.adapter as? ExchangeAdapter ?: return@setOnItemClickListener
+                showExchange(adapter.getItem(position))
+            }
             root.addView(list, LinearLayout.LayoutParams(-1, 0, 1f))
         }
         root.addView(Button(this).apply {
@@ -93,15 +99,20 @@ class RecorderActivity : Activity() {
             runOnUiThread {
                 try {
                     if (screen == Screen.LIST && target === listView) {
-                        target.adapter = ExchangeAdapter(exchanges)
+                        val adapter = target.adapter as ExchangeAdapter
+                        adapter.submitList(exchanges)
+                        val updateVersion = ++listUpdateVersion
                         scrollAnchor?.let { anchor ->
-                            val newPosition = exchanges.indexOfFirst { it.id == anchor.exchangeId }
-                            if (newPosition >= 0) {
-                                target.setSelectionFromTop(newPosition, anchor.topOffset)
+                            target.restoreScrollAnchor(adapter, anchor)
+                            target.post {
+                                if (
+                                    screen == Screen.LIST &&
+                                    target === listView &&
+                                    updateVersion == listUpdateVersion
+                                ) {
+                                    target.restoreScrollAnchor(adapter, anchor)
+                                }
                             }
-                        }
-                        target.setOnItemClickListener { _, _, position, _ ->
-                            showExchange(exchanges[position])
                         }
                     }
                 } finally {
@@ -123,6 +134,16 @@ class RecorderActivity : Activity() {
             exchangeId = exchange.id,
             topOffset = firstView.top,
         )
+    }
+
+    private fun ListView.restoreScrollAnchor(
+        adapter: ExchangeAdapter,
+        anchor: ScrollAnchor,
+    ) {
+        val newPosition = adapter.positionOf(anchor.exchangeId)
+        if (newPosition >= 0) {
+            setSelectionFromTop(newPosition, anchor.topOffset)
+        }
     }
 
     private fun showExchange(exchange: StoredExchange) {
@@ -212,15 +233,27 @@ class RecorderActivity : Activity() {
     }
 
     private inner class ExchangeAdapter(
-        private val items: List<StoredExchange>,
+        initialItems: List<StoredExchange>,
     ) : BaseAdapter() {
+        private val items = initialItems.toMutableList()
         private val timeFormat = SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault())
 
         override fun getCount(): Int = items.size
 
         override fun getItem(position: Int): StoredExchange = items[position]
 
-        override fun getItemId(position: Int): Long = position.toLong()
+        override fun getItemId(position: Int): Long = items[position].id
+
+        override fun hasStableIds(): Boolean = true
+
+        fun submitList(newItems: List<StoredExchange>) {
+            items.clear()
+            items.addAll(newItems)
+            notifyDataSetChanged()
+        }
+
+        fun positionOf(exchangeId: Long): Int =
+            items.indexOfFirst { it.id == exchangeId }
 
         override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
             val holder: ExchangeViewHolder
