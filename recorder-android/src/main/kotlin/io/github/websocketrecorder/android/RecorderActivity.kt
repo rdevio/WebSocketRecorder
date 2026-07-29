@@ -32,7 +32,9 @@ class RecorderActivity : Activity() {
     private var listView: ListView? = null
     private val reloadInProgress = AtomicBoolean()
     private val reloadPending = AtomicBoolean()
-    private val databaseListener: () -> Unit = { reloadRealtime() }
+    private val databaseListener: () -> Unit = {
+        runOnUiThread { reloadRealtime() }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -81,6 +83,7 @@ class RecorderActivity : Activity() {
     private fun reloadRealtime() {
         val target = listView ?: return
         if (screen != Screen.LIST) return
+        val scrollAnchor = target.captureScrollAnchor()
         if (!reloadInProgress.compareAndSet(false, true)) {
             reloadPending.set(true)
             return
@@ -91,6 +94,12 @@ class RecorderActivity : Activity() {
                 try {
                     if (screen == Screen.LIST && target === listView) {
                         target.adapter = ExchangeAdapter(exchanges)
+                        scrollAnchor?.let { anchor ->
+                            val newPosition = exchanges.indexOfFirst { it.id == anchor.exchangeId }
+                            if (newPosition >= 0) {
+                                target.setSelectionFromTop(newPosition, anchor.topOffset)
+                            }
+                        }
                         target.setOnItemClickListener { _, _, position, _ ->
                             showExchange(exchanges[position])
                         }
@@ -101,6 +110,19 @@ class RecorderActivity : Activity() {
                 }
             }
         }
+    }
+
+    private fun ListView.captureScrollAnchor(): ScrollAnchor? {
+        if (adapter == null || adapter.count == 0) return null
+        val firstPosition = firstVisiblePosition
+        val firstView = getChildAt(0) ?: return null
+        val isAtTop = firstPosition == 0 && firstView.top >= paddingTop
+        if (isAtTop) return null
+        val exchange = adapter.getItem(firstPosition) as? StoredExchange ?: return null
+        return ScrollAnchor(
+            exchangeId = exchange.id,
+            topOffset = firstView.top,
+        )
     }
 
     private fun showExchange(exchange: StoredExchange) {
@@ -250,6 +272,11 @@ class RecorderActivity : Activity() {
         val label: String,
         val backgroundColor: Int,
         val textColor: Int,
+    )
+
+    private data class ScrollAnchor(
+        val exchangeId: Long,
+        val topOffset: Int,
     )
 
     private fun roundedBackground(color: Int) = GradientDrawable().apply {
