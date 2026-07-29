@@ -9,6 +9,7 @@ import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.graphics.Typeface
 import android.os.Bundle
+import android.os.Build
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
@@ -19,6 +20,8 @@ import android.widget.LinearLayout
 import android.widget.ListView
 import android.widget.ScrollView
 import android.widget.TextView
+import android.window.OnBackInvokedCallback
+import android.window.OnBackInvokedDispatcher
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -33,6 +36,7 @@ class RecorderActivity : Activity() {
     private var listUpdateVersion = 0L
     private val reloadInProgress = AtomicBoolean()
     private val reloadPending = AtomicBoolean()
+    private var backInvokedCallback: OnBackInvokedCallback? = null
     private val databaseListener: () -> Unit = {
         runOnUiThread { reloadRealtime() }
     }
@@ -40,6 +44,7 @@ class RecorderActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         database = RecorderDatabase(applicationContext, Int.MAX_VALUE)
+        registerPredictiveBackCallback()
         showList()
     }
 
@@ -54,13 +59,48 @@ class RecorderActivity : Activity() {
         super.onStop()
     }
 
+    override fun onDestroy() {
+        unregisterPredictiveBackCallback()
+        super.onDestroy()
+    }
+
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
-        when (screen) {
-            Screen.PAYLOAD -> selectedExchange?.let(::showExchange) ?: showList()
-            Screen.EXCHANGE -> showList()
-            Screen.LIST -> super.onBackPressed()
+        if (!navigateBack()) {
+            super.onBackPressed()
         }
+    }
+
+    private fun navigateBack(): Boolean {
+        when (screen) {
+            Screen.PAYLOAD -> {
+                selectedExchange?.let(::showExchange) ?: showList()
+                return true
+            }
+            Screen.EXCHANGE -> {
+                showList()
+                return true
+            }
+            Screen.LIST -> return false
+        }
+    }
+
+    private fun registerPredictiveBackCallback() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        val callback = OnBackInvokedCallback {
+            if (!navigateBack()) finish()
+        }
+        onBackInvokedDispatcher.registerOnBackInvokedCallback(
+            OnBackInvokedDispatcher.PRIORITY_DEFAULT,
+            callback,
+        )
+        backInvokedCallback = callback
+    }
+
+    private fun unregisterPredictiveBackCallback() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        backInvokedCallback?.let(onBackInvokedDispatcher::unregisterOnBackInvokedCallback)
+        backInvokedCallback = null
     }
 
     private fun showList() {
