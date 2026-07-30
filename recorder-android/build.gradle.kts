@@ -3,11 +3,11 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 plugins {
     id("com.android.library")
     kotlin("android")
-    `maven-publish`
+    id("com.vanniktech.maven.publish")
 }
 
 android {
-    namespace = "io.github.websocketrecorder.android"
+    namespace = "io.github.rdev.websocketrecorder.android"
     compileSdk = 34
 
     defaultConfig {
@@ -20,11 +20,6 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    publishing {
-        singleVariant("release") {
-            withSourcesJar()
-        }
-    }
 }
 
 kotlin {
@@ -36,15 +31,4 @@ kotlin {
 dependencies {
     api(project(":recorder-core"))
     testImplementation(kotlin("test"))
-}
-
-publishing {
-    publications {
-        register<MavenPublication>("release") {
-            artifactId = "recorder-android"
-            afterEvaluate {
-                from(components["release"])
-            }
-        }
-    }
 }

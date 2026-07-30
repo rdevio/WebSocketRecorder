@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="websocket_recorder_outgoing_background">#4A2C10</color>
+    <color name="websocket_recorder_outgoing_text">#FFB74D</color>
+    <color name="websocket_recorder_incoming_background">#173D20</color>
+    <color name="websocket_recorder_incoming_text">#81C784</color>
+    <color name="websocket_recorder_matched_background">#3E2447</color>
+    <color name="websocket_recorder_matched_text">#CE93D8</color>
+</resources>
