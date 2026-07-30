@@ -32,3 +32,11 @@ dependencies {
     api(project(":recorder-core"))
     testImplementation(kotlin("test"))
 }
+
+signing {
+    useGpgCmd()
+}
+
+tasks.matching { it.name == "javaDocReleaseGeneration" }.configureEach {
+    enabled = false
+}

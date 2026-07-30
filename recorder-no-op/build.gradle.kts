@@ -11,3 +11,7 @@ dependencies {
     api(project(":recorder-core"))
     api("com.squareup.okhttp3:okhttp:4.12.0")
 }
+
+signing {
+    useGpgCmd()
+}
