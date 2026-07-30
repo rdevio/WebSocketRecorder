@@ -21,8 +21,10 @@ import android.widget.LinearLayout
 import android.widget.ListView
 import android.widget.ScrollView
 import android.widget.TextView
+import android.widget.Toast
 import android.window.OnBackInvokedCallback
 import android.window.OnBackInvokedDispatcher
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -325,6 +327,15 @@ class RecorderActivity : Activity() {
             }, LinearLayout.LayoutParams(0, -2, 1f))
         }
         root.addView(choices)
+        root.addView(Button(this).apply {
+            text = "Share request + response"
+            setOnClickListener {
+                shareAsTextFile(
+                    title = "WebSocket exchange · ${exchange.type}",
+                    content = exchange.toShareText(),
+                )
+            }
+        })
         root.addView(TextView(this).apply {
             text = when {
                 exchange.hasRequest && exchange.hasResponse -> "Request matched with response"
@@ -357,16 +368,7 @@ class RecorderActivity : Activity() {
         actions.addView(Button(this).apply {
             text = "Share"
             setOnClickListener {
-                startActivity(
-                    Intent.createChooser(
-                        Intent(Intent.ACTION_SEND).apply {
-                            type = "text/plain"
-                            putExtra(Intent.EXTRA_SUBJECT, title)
-                            putExtra(Intent.EXTRA_TEXT, payload)
-                        },
-                        "Share WebSocket message",
-                    ),
-                )
+                shareAsTextFile(title, JsonPrettyPrinter.format(payload))
             }
         }, LinearLayout.LayoutParams(0, -2, 1f))
         root.addView(actions)
@@ -379,6 +381,50 @@ class RecorderActivity : Activity() {
             })
         }, LinearLayout.LayoutParams(-1, 0, 1f))
         setContentView(root)
+    }
+
+    private fun StoredExchange.toShareText(): String = buildString {
+        appendLine("WebSocket exchange")
+        appendLine("Type: $type")
+        appendLine("uniqueId: ${uniqueId ?: "N/A"}")
+        appendLine("Socket: ${socketUrl ?: "N/A"}")
+        requestTimeMs?.let { appendLine("Request sent: ${formatTimestamp(it)}") }
+        responseTimeMs?.let { appendLine("Response received: ${formatTimestamp(it)}") }
+        roundTripTimeMs?.let { appendLine("Round trip: ${formatDuration(it)}") }
+        appendLine()
+        appendLine("========== REQUEST ==========")
+        appendLine(request?.let(JsonPrettyPrinter::format) ?: "Not recorded")
+        appendLine()
+        appendLine("========== RESPONSE ==========")
+        appendLine(response?.let(JsonPrettyPrinter::format) ?: "Not received")
+    }
+
+    private fun shareAsTextFile(title: String, content: String) {
+        try {
+            val shareDirectory = File(cacheDir, SHARE_DIRECTORY).apply { mkdirs() }
+            val safeName = title
+                .replace(Regex("[^A-Za-z0-9._-]+"), "_")
+                .trim('_')
+                .take(60)
+                .ifEmpty { "websocket-message" }
+            val shareFile = File(
+                shareDirectory,
+                "$safeName-${System.currentTimeMillis()}.txt",
+            ).apply {
+                writeText(content, Charsets.UTF_8)
+            }
+            val uri = ShareFileProvider.uriFor(this, shareFile)
+            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_SUBJECT, title)
+                putExtra(Intent.EXTRA_STREAM, uri)
+                clipData = ClipData.newUri(contentResolver, title, uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            startActivity(Intent.createChooser(shareIntent, "Share WebSocket message"))
+        } catch (_: Throwable) {
+            Toast.makeText(this, "Unable to share message", Toast.LENGTH_SHORT).show()
+        }
     }
 
     private inner class ExchangeAdapter(
@@ -537,6 +583,7 @@ class RecorderActivity : Activity() {
     companion object {
         private const val PREFERENCES_NAME = "websocket_recorder_preferences"
         private const val HIDDEN_TYPES_KEY = "hidden_message_types"
+        private const val SHARE_DIRECTORY = "websocket-recorder-share"
         fun intent(context: Context): Intent =
             Intent(context, RecorderActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 

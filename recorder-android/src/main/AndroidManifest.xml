@@ -8,6 +8,12 @@
             android:name=".RecorderActivity"
             android:exported="false"
             android:theme="@style/WebSocketRecorderTheme" />
+
+        <provider
+            android:name=".ShareFileProvider"
+            android:authorities="${applicationId}.websocketrecorder.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true" />
     </application>
 
 </manifest>
