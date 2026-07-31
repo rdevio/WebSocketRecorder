@@ -6,6 +6,6 @@ plugins {
 }
 
 allprojects {
-    group = "io.github.rdev.websocketrecorder"
-    version = "0.1.6-SNAPSHOT"
+    group = "io.github.rdevio.websocketrecorder"
+    version = "0.1.6"
 }

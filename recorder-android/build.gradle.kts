@@ -7,7 +7,7 @@ plugins {
 }
 
 android {
-    namespace = "io.github.rdev.websocketrecorder.android"
+    namespace = "io.github.rdevio.websocketrecorder.android"
     compileSdk = 34
 
     defaultConfig {

@@ -1,1 +1,1 @@
--keep class io.github.rdev.websocketrecorder.android.RecorderActivity { *; }
+-keep class io.github.rdevio.websocketrecorder.android.RecorderActivity { *; }

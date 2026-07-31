@@ -60,10 +60,10 @@ Publish all modules to your local Maven repository:
 The current local coordinates are:
 
 ```text
-io.github.rdev.websocketrecorder:recorder-core:0.1.5-SNAPSHOT
-io.github.rdev.websocketrecorder:recorder-okhttp:0.1.5-SNAPSHOT
-io.github.rdev.websocketrecorder:recorder-no-op:0.1.5-SNAPSHOT
-io.github.rdev.websocketrecorder:recorder-android:0.1.5-SNAPSHOT
+io.github.rdevio.websocketrecorder:recorder-core:0.1.6
+io.github.rdevio.websocketrecorder:recorder-okhttp:0.1.6
+io.github.rdevio.websocketrecorder:recorder-no-op:0.1.6
+io.github.rdevio.websocketrecorder:recorder-android:0.1.6
 ```
 
 In the consuming project's `settings.gradle.kts`:
@@ -83,13 +83,13 @@ Then add the OkHttp integration:
 ```kotlin
 dependencies {
     debugImplementation(
-        "io.github.rdev.websocketrecorder:recorder-okhttp:0.1.5-SNAPSHOT",
+        "io.github.rdevio.websocketrecorder:recorder-okhttp:0.1.6",
     )
     debugImplementation(
-        "io.github.rdev.websocketrecorder:recorder-android:0.1.5-SNAPSHOT",
+        "io.github.rdevio.websocketrecorder:recorder-android:0.1.6",
     )
     releaseImplementation(
-        "io.github.rdev.websocketrecorder:recorder-no-op:0.1.5-SNAPSHOT",
+        "io.github.rdevio.websocketrecorder:recorder-no-op:0.1.6",
     )
 }
 ```
