@@ -102,10 +102,8 @@ Java:
 AndroidWebSocketRecorder recorder = new AndroidWebSocketRecorder.Builder(getApplicationContext())
     .messageMasker(type -> {
         switch (type) {
-            case "0": return "ASYNC_PING";
-            case "6": return "CHAT_PING";
-            case "23": return "GET_USER_PROFILE";
-            case "24": return "UPDATE_USER_PROFILE";
+            case "0": return "PING";
+            case "230": return "UPDATE_STATUS";
             case "1":
             case "2":
             case "99": return null;
