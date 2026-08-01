@@ -6,4 +6,10 @@
     <color name="websocket_recorder_incoming_text">#81C784</color>
     <color name="websocket_recorder_matched_background">#3E2447</color>
     <color name="websocket_recorder_matched_text">#CE93D8</color>
+    <color name="websocket_recorder_json_key">#64B5F6</color>
+    <color name="websocket_recorder_json_string">#81C784</color>
+    <color name="websocket_recorder_json_number">#FFB74D</color>
+    <color name="websocket_recorder_json_boolean">#CE93D8</color>
+    <color name="websocket_recorder_json_null">#BDBDBD</color>
+    <color name="websocket_recorder_json_container_background">#14FFFFFF</color>
 </resources>

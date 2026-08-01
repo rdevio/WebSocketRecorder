@@ -373,11 +373,9 @@ class RecorderActivity : Activity() {
         }, LinearLayout.LayoutParams(0, -2, 1f))
         root.addView(actions)
         root.addView(ScrollView(this).apply {
-            addView(TextView(this@RecorderActivity).apply {
-                text = JsonPrettyPrinter.format(payload)
-                typeface = Typeface.MONOSPACE
-                setTextIsSelectable(true)
-                setPadding(12.dp, 12.dp, 12.dp, 32.dp)
+            addView(JsonTreeView(this@RecorderActivity).apply {
+                setPayload(payload)
+                setPadding(4.dp, 12.dp, 4.dp, 32.dp)
             })
         }, LinearLayout.LayoutParams(-1, 0, 1f))
         setContentView(root)
