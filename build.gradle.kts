@@ -7,5 +7,5 @@ plugins {
 
 allprojects {
     group = "io.github.rdevio.websocketrecorder"
-    version = "0.1.7-SNAPSHOT"
+    version = "0.1.7"
 }
