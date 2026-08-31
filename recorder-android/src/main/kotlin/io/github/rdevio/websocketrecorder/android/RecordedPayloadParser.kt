@@ -51,13 +51,19 @@ internal object RecordedPayloadParser {
     private fun findValue(value: Any?, vararg names: String): String? {
         when (value) {
             is JSONObject -> {
-                names.forEach { name -> value.optValueOrNull(name)?.let { return it } }
-                value.keys().asSequence().forEach { key ->
-                    findValue(value.opt(key), *names)?.let { return it }
+                for (name in names) {
+                    val direct = value.optValueOrNull(name)
+                    if (direct != null) return direct
+                }
+                val keys = value.keys()
+                while (keys.hasNext()) {
+                    val nested = findValue(value.opt(keys.next()), *names)
+                    if (nested != null) return nested
                 }
             }
             is JSONArray -> for (index in 0 until value.length()) {
-                findValue(value.opt(index), *names)?.let { return it }
+                val nested = findValue(value.opt(index), *names)
+                if (nested != null) return nested
             }
         }
         return null

@@ -18,7 +18,7 @@ import android.view.ViewGroup
 import android.widget.BaseAdapter
 import android.widget.Button
 import android.widget.LinearLayout
-import android.widget.HorizontalScrollView
+import android.widget.ListView
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
@@ -35,7 +35,7 @@ class RecorderActivity : Activity() {
     private lateinit var database: RecorderDatabase
     private var screen = Screen.LIST
     private var selectedExchange: StoredExchange? = null
-    private var messageStrip: LinearLayout? = null
+    private var listView: ListView? = null
     private var socketUrlView: TextView? = null
     private var filterButton: Button? = null
     private var listUpdateVersion = 0L
@@ -129,15 +129,19 @@ class RecorderActivity : Activity() {
             root.addView(button)
         }
         updateFilterButton()
-        val strip = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
+        listView = ListView(this).also { list ->
+            list.adapter = ExchangeAdapter(emptyList())
+            list.setOnItemClickListener { _, _, position, _ ->
+                val adapter = list.adapter as? ExchangeAdapter ?: return@setOnItemClickListener
+                showExchange(adapter.getItem(position))
+            }
+            list.setOnItemLongClickListener { _, _, position, _ ->
+                val adapter = list.adapter as? ExchangeAdapter ?: return@setOnItemLongClickListener false
+                showMessagePreview(adapter.getItem(position))
+                true
+            }
+            root.addView(list, LinearLayout.LayoutParams(-1, 0, 1f))
         }
-        messageStrip = strip
-        root.addView(HorizontalScrollView(this).apply {
-            isHorizontalScrollBarEnabled = true
-            addView(strip, LinearLayout.LayoutParams(-2, -1))
-        }, LinearLayout.LayoutParams(-1, 0, 1f))
         root.addView(Button(this).apply {
             text = "Clear history"
             setOnClickListener {
@@ -149,8 +153,9 @@ class RecorderActivity : Activity() {
     }
 
     private fun reloadRealtime() {
-        val target = messageStrip ?: return
+        val target = listView ?: return
         if (screen != Screen.LIST) return
+        val scrollAnchor = target.captureScrollAnchor()
         if (!reloadInProgress.compareAndSet(false, true)) {
             reloadPending.set(true)
             return
@@ -159,7 +164,7 @@ class RecorderActivity : Activity() {
             val exchanges = database.recent()
             runOnUiThread {
                 try {
-                    if (screen == Screen.LIST && target === messageStrip) {
+                    if (screen == Screen.LIST && target === listView) {
                         availableTypes.clear()
                         availableTypes += exchanges.map { it.type }
                         val socketUrls = exchanges.mapNotNull { it.socketUrl }.distinct()
@@ -170,12 +175,16 @@ class RecorderActivity : Activity() {
                         }
                         updateFilterButton()
                         val visibleExchanges = exchanges.filterNot { it.type in hiddenTypes }
-                        target.removeAllViews()
-                        val adapter = ExchangeAdapter(visibleExchanges)
-                        visibleExchanges.forEachIndexed { index, exchange ->
-                            val card = adapter.getView(index, null, target)
-                            card.setOnClickListener { showExchange(exchange) }
-                            target.addView(card)
+                        val adapter = target.adapter as ExchangeAdapter
+                        adapter.submitList(visibleExchanges)
+                        val updateVersion = ++listUpdateVersion
+                        scrollAnchor?.let { anchor ->
+                            target.restoreScrollAnchor(adapter, anchor)
+                            target.post {
+                                if (screen == Screen.LIST && target === listView && updateVersion == listUpdateVersion) {
+                                    target.restoreScrollAnchor(adapter, anchor)
+                                }
+                            }
                         }
                     }
                 } finally {
@@ -245,10 +254,41 @@ class RecorderActivity : Activity() {
             .apply()
     }
 
+    private fun showMessagePreview(exchange: StoredExchange) {
+        val payload = exchange.request ?: exchange.response ?: "No payload recorded"
+        val preview = JsonPrettyPrinter.format(payload).let {
+            if (it.length <= PREVIEW_MAX_LENGTH) it else it.take(PREVIEW_MAX_LENGTH) + "…"
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Preview · ${exchange.type}")
+            .setView(TextView(this).apply {
+                text = preview
+                typeface = Typeface.MONOSPACE
+                setTextIsSelectable(true)
+                setPadding(24.dp, 8.dp, 24.dp, 8.dp)
+            })
+            .setPositiveButton(android.R.string.ok, null)
+            .show()
+    }
+
+    private fun ListView.captureScrollAnchor(): ScrollAnchor? {
+        if (adapter == null || adapter.count == 0) return null
+        val firstPosition = firstVisiblePosition
+        val firstView = getChildAt(0) ?: return null
+        if (firstPosition == 0 && firstView.top >= paddingTop) return null
+        val exchange = adapter.getItem(firstPosition) as? StoredExchange ?: return null
+        return ScrollAnchor(exchange.id, firstView.top)
+    }
+
+    private fun ListView.restoreScrollAnchor(adapter: ExchangeAdapter, anchor: ScrollAnchor) {
+        val position = adapter.positionOf(anchor.exchangeId)
+        if (position >= 0) setSelectionFromTop(position, anchor.topOffset)
+    }
+
     private fun showExchange(exchange: StoredExchange) {
         screen = Screen.EXCHANGE
         selectedExchange = exchange
-        messageStrip = null
+        listView = null
         val root = verticalLayout()
         root.addView(Button(this).apply {
             text = "← Messages"
@@ -408,6 +448,14 @@ class RecorderActivity : Activity() {
 
         override fun hasStableIds(): Boolean = true
 
+        fun submitList(newItems: List<StoredExchange>) {
+            items.clear()
+            items.addAll(newItems)
+            notifyDataSetChanged()
+        }
+
+        fun positionOf(exchangeId: Long): Int = items.indexOfFirst { it.id == exchangeId }
+
         override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
             val holder: ExchangeViewHolder
             val view: View
@@ -479,6 +527,8 @@ class RecorderActivity : Activity() {
         val textColor: Int,
     )
 
+    private data class ScrollAnchor(val exchangeId: Long, val topOffset: Int)
+
     private fun roundedBackground(color: Int) = GradientDrawable().apply {
         shape = GradientDrawable.RECTANGLE
         cornerRadius = 12.dp.toFloat()
@@ -537,6 +587,7 @@ class RecorderActivity : Activity() {
         private const val PREFERENCES_NAME = "websocket_recorder_preferences"
         private const val HIDDEN_TYPES_KEY = "hidden_message_types"
         private const val SHARE_DIRECTORY = "websocket-recorder-share"
+        private const val PREVIEW_MAX_LENGTH = 4_000
         fun intent(context: Context): Intent =
             Intent(context, RecorderActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
