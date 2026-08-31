@@ -2,6 +2,12 @@
 
 All notable changes to WebSocketRecorder are documented here.
 
+## [0.1.9] - 2026-08-31
+
+### Fixed
+
+- Restore the vertical message list and add long-press payload previews.
+
 ## [0.1.8] - 2026-08-31
 
 ### Fixed
