@@ -1,7 +1,7 @@
 # WebSocketRecorder
 
-[![Latest version](https://img.shields.io/badge/latest-0.1.7-blue)](https://github.com/rdevio/WebSocketRecorder/releases/tag/v0.1.7)
-[![Maven Central](https://img.shields.io/maven-central/v/io.github.rdevio.websocketrecorder/recorder-android?label=Maven%20Central)](https://central.sonatype.com/artifact/io.github.rdevio.websocketrecorder/recorder-android/0.1.7)
+[![Latest version](https://img.shields.io/badge/latest-0.1.8-blue)](https://github.com/rdevio/WebSocketRecorder/releases/tag/v0.1.8)
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.rdevio.websocketrecorder/recorder-android?label=Maven%20Central)](https://central.sonatype.com/artifact/io.github.rdevio.websocketrecorder/recorder-android/0.1.8)
 [![License](https://img.shields.io/badge/license-Apache%202.0-green)](LICENSE)
 
 WebSocketRecorder is an Android debug tool for monitoring an existing OkHttp WebSocket.
@@ -20,7 +20,7 @@ WebSocket and its listener.
 
 ## Latest release
 
-The current stable version is **0.1.7**. See [Releases](https://github.com/rdevio/WebSocketRecorder/releases)
+The current stable version is **0.1.8**. See [Releases](https://github.com/rdevio/WebSocketRecorder/releases)
 and the [changelog](CHANGELOG.md) for release details.
 
 ## Installation
@@ -38,10 +38,10 @@ Add the debug libraries and the release no-op implementation:
 
 ```kotlin
 dependencies {
-    debugImplementation("io.github.rdevio.websocketrecorder:recorder-android:0.1.7")
-    debugImplementation("io.github.rdevio.websocketrecorder:recorder-okhttp:0.1.7")
+    debugImplementation("io.github.rdevio.websocketrecorder:recorder-android:0.1.8")
+    debugImplementation("io.github.rdevio.websocketrecorder:recorder-okhttp:0.1.8")
 
-    releaseImplementation("io.github.rdevio.websocketrecorder:recorder-no-op:0.1.7")
+    releaseImplementation("io.github.rdevio.websocketrecorder:recorder-no-op:0.1.8")
 }
 ```
 

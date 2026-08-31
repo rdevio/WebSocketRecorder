@@ -83,7 +83,7 @@ internal class RecorderDatabase(
             messageMasker.displayType(parsed.type)
         } catch (_: Throwable) {
             parsed.type
-        } ?: return null
+        } ?: parsed.type
         val key = parsed.uniqueId?.let { "unique:$it" }
             ?: "event:${event.sessionId}:${event.sequence}:${event.direction}"
         val existingId = findId(key)

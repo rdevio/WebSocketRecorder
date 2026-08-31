@@ -3,7 +3,7 @@ package io.github.rdevio.websocketrecorder.android
 /**
  * Controls the title and visibility of a captured text message.
  *
- * Return a replacement title to keep the message, or `null` to discard it before persistence.
+ * Return a replacement title, or `null` to use the parser's original title.
  */
 fun interface WebSocketMessageMasker {
     fun displayType(type: String): String?

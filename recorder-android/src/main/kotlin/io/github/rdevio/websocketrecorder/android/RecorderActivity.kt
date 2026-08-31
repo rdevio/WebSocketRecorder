@@ -18,7 +18,7 @@ import android.view.ViewGroup
 import android.widget.BaseAdapter
 import android.widget.Button
 import android.widget.LinearLayout
-import android.widget.ListView
+import android.widget.HorizontalScrollView
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
@@ -35,7 +35,7 @@ class RecorderActivity : Activity() {
     private lateinit var database: RecorderDatabase
     private var screen = Screen.LIST
     private var selectedExchange: StoredExchange? = null
-    private var listView: ListView? = null
+    private var messageStrip: LinearLayout? = null
     private var socketUrlView: TextView? = null
     private var filterButton: Button? = null
     private var listUpdateVersion = 0L
@@ -129,14 +129,15 @@ class RecorderActivity : Activity() {
             root.addView(button)
         }
         updateFilterButton()
-        listView = ListView(this).also { list ->
-            list.adapter = ExchangeAdapter(emptyList())
-            list.setOnItemClickListener { _, _, position, _ ->
-                val adapter = list.adapter as? ExchangeAdapter ?: return@setOnItemClickListener
-                showExchange(adapter.getItem(position))
-            }
-            root.addView(list, LinearLayout.LayoutParams(-1, 0, 1f))
+        val strip = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
         }
+        messageStrip = strip
+        root.addView(HorizontalScrollView(this).apply {
+            isHorizontalScrollBarEnabled = true
+            addView(strip, LinearLayout.LayoutParams(-2, -1))
+        }, LinearLayout.LayoutParams(-1, 0, 1f))
         root.addView(Button(this).apply {
             text = "Clear history"
             setOnClickListener {
@@ -148,9 +149,8 @@ class RecorderActivity : Activity() {
     }
 
     private fun reloadRealtime() {
-        val target = listView ?: return
+        val target = messageStrip ?: return
         if (screen != Screen.LIST) return
-        val scrollAnchor = target.captureScrollAnchor()
         if (!reloadInProgress.compareAndSet(false, true)) {
             reloadPending.set(true)
             return
@@ -159,7 +159,7 @@ class RecorderActivity : Activity() {
             val exchanges = database.recent()
             runOnUiThread {
                 try {
-                    if (screen == Screen.LIST && target === listView) {
+                    if (screen == Screen.LIST && target === messageStrip) {
                         availableTypes.clear()
                         availableTypes += exchanges.map { it.type }
                         val socketUrls = exchanges.mapNotNull { it.socketUrl }.distinct()
@@ -170,20 +170,12 @@ class RecorderActivity : Activity() {
                         }
                         updateFilterButton()
                         val visibleExchanges = exchanges.filterNot { it.type in hiddenTypes }
-                        val adapter = target.adapter as ExchangeAdapter
-                        adapter.submitList(visibleExchanges)
-                        val updateVersion = ++listUpdateVersion
-                        scrollAnchor?.let { anchor ->
-                            target.restoreScrollAnchor(adapter, anchor)
-                            target.post {
-                                if (
-                                    screen == Screen.LIST &&
-                                    target === listView &&
-                                    updateVersion == listUpdateVersion
-                                ) {
-                                    target.restoreScrollAnchor(adapter, anchor)
-                                }
-                            }
+                        target.removeAllViews()
+                        val adapter = ExchangeAdapter(visibleExchanges)
+                        visibleExchanges.forEachIndexed { index, exchange ->
+                            val card = adapter.getView(index, null, target)
+                            card.setOnClickListener { showExchange(exchange) }
+                            target.addView(card)
                         }
                     }
                 } finally {
@@ -253,33 +245,10 @@ class RecorderActivity : Activity() {
             .apply()
     }
 
-    private fun ListView.captureScrollAnchor(): ScrollAnchor? {
-        if (adapter == null || adapter.count == 0) return null
-        val firstPosition = firstVisiblePosition
-        val firstView = getChildAt(0) ?: return null
-        val isAtTop = firstPosition == 0 && firstView.top >= paddingTop
-        if (isAtTop) return null
-        val exchange = adapter.getItem(firstPosition) as? StoredExchange ?: return null
-        return ScrollAnchor(
-            exchangeId = exchange.id,
-            topOffset = firstView.top,
-        )
-    }
-
-    private fun ListView.restoreScrollAnchor(
-        adapter: ExchangeAdapter,
-        anchor: ScrollAnchor,
-    ) {
-        val newPosition = adapter.positionOf(anchor.exchangeId)
-        if (newPosition >= 0) {
-            setSelectionFromTop(newPosition, anchor.topOffset)
-        }
-    }
-
     private fun showExchange(exchange: StoredExchange) {
         screen = Screen.EXCHANGE
         selectedExchange = exchange
-        listView = null
+        messageStrip = null
         val root = verticalLayout()
         root.addView(Button(this).apply {
             text = "← Messages"
@@ -439,15 +408,6 @@ class RecorderActivity : Activity() {
 
         override fun hasStableIds(): Boolean = true
 
-        fun submitList(newItems: List<StoredExchange>) {
-            items.clear()
-            items.addAll(newItems)
-            notifyDataSetChanged()
-        }
-
-        fun positionOf(exchangeId: Long): Int =
-            items.indexOfFirst { it.id == exchangeId }
-
         override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
             val holder: ExchangeViewHolder
             val view: View
@@ -517,11 +477,6 @@ class RecorderActivity : Activity() {
         val label: String,
         val backgroundColor: Int,
         val textColor: Int,
-    )
-
-    private data class ScrollAnchor(
-        val exchangeId: Long,
-        val topOffset: Int,
     )
 
     private fun roundedBackground(color: Int) = GradientDrawable().apply {

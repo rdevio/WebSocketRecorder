@@ -2,6 +2,13 @@
 
 All notable changes to WebSocketRecorder are documented here.
 
+## [0.1.8] - 2026-08-31
+
+### Fixed
+
+- Preserve WebSocket messages with heterogeneous or non-object payloads.
+- Display recorded messages in a horizontally scrollable inspector list.
+
 ## [0.1.7] - 2026-08-01
 
 ### Added

@@ -13,26 +13,19 @@ internal data class ParsedPayload(
 internal object RecordedPayloadParser {
     fun parse(raw: String): ParsedPayload {
         val root = parseJson(raw)
-        if (root !is JSONObject) {
-            return ParsedPayload(null, "Message", raw)
-        }
-
-        val decodedContent = decodeRecursively(root.opt("content"))
-        if (decodedContent !== root.opt("content") && decodedContent != null) {
-            root.put("content", decodedContent)
-        }
-
-        val contentObject = decodedContent as? JSONObject
-        val uniqueId = root.optStringOrNull("uniqueId")
-            ?: contentObject?.optStringOrNull("uniqueId")
-        val type = contentObject?.optValueOrNull("type")
-            ?: root.optValueOrNull("type")
+        val normalizedRoot = decodeRecursively(root)
+        val uniqueId = findValue(normalizedRoot, "uniqueId", "unique_id", "requestId", "request_id")
+        val type = findValue(normalizedRoot, "type", "messageType", "message_type", "event")
             ?: "Message"
 
         return ParsedPayload(
             uniqueId = uniqueId,
             type = type,
-            normalized = root.toString(2),
+            normalized = when (normalizedRoot) {
+                is JSONObject -> normalizedRoot.toString(2)
+                is JSONArray -> normalizedRoot.toString(2)
+                else -> raw
+            },
         )
     }
 
@@ -53,6 +46,21 @@ internal object RecordedPayloadParser {
             value
         }
         else -> value
+    }
+
+    private fun findValue(value: Any?, vararg names: String): String? {
+        when (value) {
+            is JSONObject -> {
+                names.forEach { name -> value.optValueOrNull(name)?.let { return it } }
+                value.keys().asSequence().forEach { key ->
+                    findValue(value.opt(key), *names)?.let { return it }
+                }
+            }
+            is JSONArray -> for (index in 0 until value.length()) {
+                findValue(value.opt(index), *names)?.let { return it }
+            }
+        }
+        return null
     }
 
     private fun parseJson(value: String): Any {
